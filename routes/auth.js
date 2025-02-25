@@ -41,6 +41,7 @@ const SECRET = process.env.JWT_SECRET;
  */
 
 router.post("/signup", async (req, res) => {
+  console.log(req.body)
   const { fullName, email, password } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -51,6 +52,7 @@ router.post("/signup", async (req, res) => {
 
     res.json({ message: "User registered successfully" });
   } catch (error) {
+    console.log(error);
     res.status(400).json({ error: "User already exists" });
   }
 });
