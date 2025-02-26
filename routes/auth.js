@@ -50,7 +50,9 @@ router.post("/signup", async (req, res) => {
       data: { fullName, email, password: hashedPassword },
     });
 
-    res.json({ message: "User registered successfully" });
+    const token = jwt.sign({ userId: user.id, fullName: user.fullName, email: user.email }, SECRET, { expiresIn: "7d" });
+
+    res.json({ message: "User registered successfully", token });
   } catch (error) {
     console.log(error);
     res.status(400).json({ error: "User already exists" });
@@ -91,13 +93,14 @@ router.post("/signup", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
+  console.log("inside login")
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
-  const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: "7d" });
+  const token = jwt.sign({ userId: user.id, fullName: user.fullName, email: user.email }, SECRET, { expiresIn: "7d" });
   res.json({ token });
 });
 

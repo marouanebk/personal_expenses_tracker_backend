@@ -24,6 +24,5 @@ app.use("/stats", statsRoutes);
 // Setup Swagger
 swaggerDocs(app);
 
-app.listen(4000, () => {
-  console.log("Server running on port 4000");
-});
+app.listen(4000, '0.0.0.0', () => console.log(`Server running on port 4000`));
+

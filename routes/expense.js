@@ -80,10 +80,10 @@ router.get("/", authMiddleware, async (req, res) => {
  *         description: Expense created successfully
  */
 router.post("/", authMiddleware, async (req, res) => {
-  const { description, category, amount, date, note } = req.body;
+  const { description, category, amount, date, note , transactionType } = req.body;
 
   const expense = await prisma.expense.create({
-    data: { description, category, amount, date, note, userId: req.userId },
+    data: { description, category, amount, date, note,transactionType,  userId: req.userId },
   });
 
   res.json(expense);

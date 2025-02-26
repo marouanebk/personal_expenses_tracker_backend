@@ -76,10 +76,10 @@ router.get("/", authMiddleware, async (req, res) => {
  *         description: Income created successfully
  */
 router.post("/", authMiddleware, async (req, res) => {
-  const { description, amount, date, note } = req.body;
+  const { description, amount, date, note , transactionType } = req.body;
 
   const income = await prisma.income.create({
-    data: { description, amount, date, note, userId: req.userId },
+    data: { description, amount, date, note,transactionType,  userId: req.userId },
   });
 
   res.json(income);
