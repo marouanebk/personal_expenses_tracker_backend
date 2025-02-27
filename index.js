@@ -12,6 +12,7 @@ const statsRoutes = require("./routes/stats");
 const app = express();
 const prisma = new PrismaClient();
 
+// commit 
 app.use(cors());
 app.use(express.json());
 
