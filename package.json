@@ -4,7 +4,9 @@
     "prisma": "^6.4.1"
   },
   "scripts": {
-    "start": "nodemon index.js"
+    "build": "npx prisma generate",
+    "start": "npx prisma migrate deploy && node index.js",
+    "dev": "nodemon index.js"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",
