@@ -22,8 +22,22 @@ app.use("/expenses", expenseRoutes);
 app.use("/incomes", incomeRoutes);
 app.use("/stats", statsRoutes);
 
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: "Internal server error" });
+});
+
 // Setup Swagger
 swaggerDocs(app);
 
 app.listen(4000, '0.0.0.0', () => console.log(`Server running on port 4000`));
+
+process.on('SIGTERM', async () => {
+  console.log('Shutting down server...');
+  await prisma.$disconnect();
+  server.close(() => {
+    console.log('Server stopped');
+    process.exit(0);
+  });
+});
 

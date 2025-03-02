@@ -39,10 +39,17 @@ const SECRET = process.env.JWT_SECRET;
  *       400:
  *         description: User already exists
  */
-
 router.post("/signup", async (req, res) => {
-  console.log(req.body)
   const { fullName, email, password } = req.body;
+
+  // Input validation
+  if (!fullName || !email || !password) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+  if (typeof email !== "string" || !email.includes("@")) {
+    return res.status(400).json({ error: "Invalid email format" });
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
 
   try {
@@ -51,11 +58,13 @@ router.post("/signup", async (req, res) => {
     });
 
     const token = jwt.sign({ userId: user.id, fullName: user.fullName, email: user.email }, SECRET, { expiresIn: "7d" });
-
     res.json({ message: "User registered successfully", token });
   } catch (error) {
-    console.log(error);
-    res.status(400).json({ error: "User already exists" });
+    if (error.code === "P2002") { // Prisma unique constraint violation
+      return res.status(400).json({ error: "User already exists" });
+    }
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -93,15 +102,23 @@ router.post("/signup", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  console.log("inside login")
 
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    return res.status(401).json({ error: "Invalid credentials" });
+  // Input validation
+  if (!email || !password) {
+    return res.status(400).json({ error: "Missing required fields" });
   }
 
-  const token = jwt.sign({ userId: user.id, fullName: user.fullName, email: user.email }, SECRET, { expiresIn: "7d" });
-  res.json({ token });
-});
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
+    const token = jwt.sign({ userId: user.id, fullName: user.fullName, email: user.email }, SECRET, { expiresIn: "7d" });
+    res.json({ token });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 module.exports = router;

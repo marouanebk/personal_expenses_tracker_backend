@@ -43,10 +43,15 @@ const prisma = new PrismaClient();
  *                     type: integer
  */
 router.get("/", authMiddleware, async (req, res) => {
-  const incomes = await prisma.income.findMany({
-    where: { userId: req.userId },
-  });
-  res.json(incomes);
+  try {
+    const incomes = await prisma.income.findMany({
+      where: { userId: req.userId },
+    });
+    res.json(incomes);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 /**
@@ -75,14 +80,41 @@ router.get("/", authMiddleware, async (req, res) => {
  *       200:
  *         description: Income created successfully
  */
+
 router.post("/", authMiddleware, async (req, res) => {
-  const { description, amount, date, note , transactionType } = req.body;
+  const { description, amount, date, note, transactionType } = req.body;
 
-  const income = await prisma.income.create({
-    data: { description, amount, date, note,transactionType,  userId: req.userId },
-  });
+  // Input validation
+  if (!description || !amount || !date || !transactionType) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+  const validTransactionTypes = ["CASH", "CARD"];
+  if (!validTransactionTypes.includes(transactionType)) {
+    return res.status(400).json({ error: "Invalid transaction type" });
+  }
+  if (typeof amount !== "number" || amount <= 0) {
+    return res.status(400).json({ error: "Amount must be a positive number" });
+  }
+  if (isNaN(new Date(date).getTime())) {
+    return res.status(400).json({ error: "Invalid date" });
+  }
 
-  res.json(income);
+  try {
+    const income = await prisma.income.create({
+      data: {
+        description,
+        amount,
+        date: new Date(date).toISOString(),
+        note,
+        transactionType,
+        userId: req.userId,
+      },
+    });
+    res.json(income);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 /**
@@ -103,19 +135,33 @@ router.post("/", authMiddleware, async (req, res) => {
  *       403:
  *         description: Unauthorized
  */
+
 router.delete("/:id", authMiddleware, async (req, res) => {
   const { id } = req.params;
 
-  const income = await prisma.income.findUnique({
-    where: { id },
-  });
-
-  if (!income || income.userId !== req.userId) {
-    return res.status(403).json({ error: "Unauthorized" });
+  // Input validation
+  if (!Number.isInteger(parseInt(id, 10))) {
+    return res.status(400).json({ error: "Invalid id" });
   }
 
-  await prisma.income.delete({ where: { id } });
-  res.json({ message: "Income deleted" });
+  try {
+    const income = await prisma.income.findUnique({
+      where: { id: parseInt(id, 10) }, // Ensure integer parsing
+    });
+
+    if (!income) {
+      return res.status(404).json({ error: "Income not found" });
+    }
+    if (income.userId !== req.userId) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    await prisma.income.delete({ where: { id: parseInt(id, 10) } });
+    res.json({ message: "Income deleted" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 module.exports = router;
