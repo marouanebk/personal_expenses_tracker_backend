@@ -28,6 +28,7 @@ model User {
   password  String
   expenses  Expense[]
   incomes   Income[]
+  resetToken  String?  // Add this field for storing reset tokens
 }
 
 model Expense {

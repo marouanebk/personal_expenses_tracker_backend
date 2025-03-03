@@ -3,11 +3,20 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { PrismaClient } = require("@prisma/client");
 const router = express.Router();
+const nodemailer = require("nodemailer");
 
 const prisma = new PrismaClient();
 const SECRET = process.env.JWT_SECRET;
 
 const authMiddleware = require("../middleware/auth");
+
+const transporter = nodemailer.createTransport({
+  service: "Gmail", // Use your email provider (e.g., Gmail, SendGrid)
+  auth: {
+    user: process.env.EMAIL_USER, // Your email address (e.g., from .env)
+    pass: process.env.EMAIL_PASSWORD, // Your email password or app-specific password
+  },
+});
 
 /**
  * @swagger
@@ -253,6 +262,67 @@ router.put("/password", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Reset user password using a token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Invalid or expired token
+ */
+router.post("/reset-password", async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: "Token and newPassword are required" });
+  }
+
+  try {
+    // Verify the reset token
+    const decoded = jwt.verify(token, SECRET);
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+
+    if (!user || user.resetToken !== token) {
+      return res.status(400).json({ error: "Invalid or expired token" });
+    }
+
+    // Update the password and clear the reset token
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedNewPassword, resetToken: null }, // Clear the token after use
+    });
+
+    res.json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ error: "Invalid or expired token" });
   }
 });
 
