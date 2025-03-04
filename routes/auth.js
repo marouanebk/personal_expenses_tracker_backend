@@ -265,6 +265,75 @@ router.put("/password", authMiddleware, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: Request a password reset link
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password reset link sent
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Invalid email format
+ *       404:
+ *         description: User not found
+ */
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email || typeof email !== "string" || !email.includes("@")) {
+    return res.status(400).json({ error: "Valid email is required" });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Generate a reset token (short-lived, e.g., 1 hour)
+    const resetToken = jwt.sign({ userId: user.id }, SECRET, { expiresIn: "1h" });
+
+    // Store the reset token in the database (you could use a separate table or field)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetToken }, // Assuming you add a resetToken field to your User model
+    });
+
+    // Send the reset email
+    const resetLink = `http://your-app-domain.com/reset-password?token=${resetToken}`; // Replace with your frontend/app URL
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Password Reset Request",
+      html: `<p>You requested a password reset. Click <a href="${resetLink}">here</a> to reset your password. This link expires in 1 hour.</p>`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ message: "Password reset link sent to your email" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to send reset link" });
+  }
+});
+
 
 /**
  * @swagger
