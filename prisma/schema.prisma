@@ -29,6 +29,8 @@ model User {
   expenses  Expense[]
   incomes   Income[]
   resetToken  String?  // Add this field for storing reset tokens
+  resetTokenExpiresAt DateTime?
+
 }
 
 model Expense {
