@@ -179,6 +179,8 @@ router.get("/analytics", authMiddleware, async (req, res) => {
       monthlyTrendsData,
       cashExpenses,
       cardExpenses,
+      topCategoriesRaw,
+
     ] = await Promise.all([
       prisma.income.aggregate({
         where: { userId: req.userId, date: dateFilter },
@@ -210,6 +212,13 @@ router.get("/analytics", authMiddleware, async (req, res) => {
       prisma.expense.aggregate({
         where: { userId: req.userId, transactionType: 'CARD', date: dateFilter },
         _sum: { amount: true },
+      }),
+      prisma.expense.groupBy({
+        by: ['category'],
+        where: { userId: req.userId, date: dateFilter },
+        _sum: { amount: true },
+        orderBy: { _sum: { amount: 'desc' } }, // Order by amount descending
+        take: 3 // Limit to top 3
       }),
     ]);
 
@@ -244,6 +253,17 @@ router.get("/analytics", authMiddleware, async (req, res) => {
     const dailyIncome = Math.round(currentIncome / days);
     const dailySpending = Math.round(currentExpenses / days);
 
+    const totalExpensesForCategories = topCategoriesRaw.reduce((acc, curr) => acc + (curr._sum.amount || 0), 0);
+
+
+    const topCategories = topCategoriesRaw.map(item => ({
+      category: item.category,
+      amount: item._sum.amount || 0,
+      percentage: totalExpensesForCategories > 0 
+        ? Math.round((item._sum.amount / totalExpensesForCategories) * 100)
+        : 0
+    }));
+
     res.json({
       summary: {
         income: currentIncome,
@@ -264,6 +284,7 @@ router.get("/analytics", authMiddleware, async (req, res) => {
         dailyIncome,
         dailySpending,
       },
+      topCategories: topCategories, 
     });
   } catch (error) {
     console.error("Analytics error:", error);
