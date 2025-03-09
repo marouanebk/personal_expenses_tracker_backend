@@ -300,6 +300,7 @@ router.put("/password", authMiddleware, async (req, res) => {
 router.post("/forgot-password", async (req, res) => {
   const { email } = req.body;
 
+  console.log(email)
   if (!email || typeof email !== "string" || !email.includes("@")) {
     return res.status(400).json({ error: "Valid email is required" });
   }
